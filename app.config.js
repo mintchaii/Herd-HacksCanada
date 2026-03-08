@@ -32,7 +32,7 @@ export default {
           "apiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyAgVvn36Hu7ARvmF8hc1zUb5oqgNghGT1c"
         }
       },
-      "newArchEnabled": true
+      "newArchEnabled": false
     },
     "web": {
       "output": "static",

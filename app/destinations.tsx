@@ -248,6 +248,7 @@ export default function DestinationsScreen() {
             {mapReady && (
               <>
                 <Marker
+                  key="user-location"
                   coordinate={{
                     latitude: location.coords.latitude,
                     longitude: location.coords.longitude,
@@ -255,9 +256,9 @@ export default function DestinationsScreen() {
                   title="You are here"
                   pinColor="#000"
                 />
-                {places.map(place => (
+                {places.map((place) => (
                   <Marker
-                    key={place.id}
+                    key={`place-${place.id}`}
                     coordinate={{ latitude: place.latitude, longitude: place.longitude }}
                     title={place.name}
                     pinColor={getMarkerColor(place.type)}
