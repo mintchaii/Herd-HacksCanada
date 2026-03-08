@@ -7,17 +7,35 @@ import { Dimensions, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity,
 
 const { width } = Dimensions.get('window');
 
-export default function StatusScreen({ 
+export default function CallingScreen() {
+  const router = useRouter();
+  const onFinished = () => {
+    setTimeout(() => {
+      router.push('/transportation');
+    }, 2000);
+  };
+
+  return <StatusScreen 
+    title="Calling 519-886-8388..." 
+    speechText="calling 519-886-8388" 
+    onFinished={onFinished}
+  />;
+}
+
+export function StatusScreen({ 
   title = "Calling 519-886-8388...", 
-  speechText = "Calling 519-886-8388..." 
+  speechText = "calling 519-886-8388",
+  onFinished
 }: { 
   title?: string; 
-  speechText?: string; 
+  speechText?: string;
+  onFinished?: () => void;
 }) {
   const router = useRouter();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fullPrompt = `${speechText} Tap the blue button and speak your choice.`;
+  const fullPrompt = speechText;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
@@ -32,7 +50,7 @@ export default function StatusScreen({
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      speak(fullPrompt);
+      speak(fullPrompt, onFinished);
     }, 10000);
   };
 
@@ -40,17 +58,18 @@ export default function StatusScreen({
     handleCommand,
     () => stopSpeaking(),
     () => {
-      speak(fullPrompt);
+      speak(fullPrompt, onFinished);
       resetTimer();
     }
   );
 
   useEffect(() => {
-    speak(fullPrompt);
+    speak(fullPrompt, onFinished);
     resetTimer();
     return () => {
       stopSpeaking();
       if (timerRef.current) clearInterval(timerRef.current);
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     };
   }, []);
 

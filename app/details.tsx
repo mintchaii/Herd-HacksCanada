@@ -20,11 +20,11 @@ export default function DetailsScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const nameDisplay = "East Side Mario's";
-  const addressDisplay = "Address: 450 King St N";
-  const hoursDisplay = "Hours: (S) 11-10 | (M-Th) 11-9 | (F-S) 11-11";
-  const phoneDisplay = "Call: 519-886-8388";
+  const addressDisplay = "Address: 450 King street North";
+  const hoursDisplay = "Hours: sunday - 11am to 10 pm. monday to thursday - 11am to 9pm. friday to saturday - 11am to 11pm.";
+  const phoneDisplay = "calling option for East Side Mario's";
 
-  const infoMsg = `${nameDisplay}. ${addressDisplay}. ${hoursDisplay}. ${phoneDisplay}. Tap the blue button and speak your choice.`;
+  const infoMsg = `${nameDisplay}. ${addressDisplay}. ${hoursDisplay}. ${phoneDisplay}.`;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();

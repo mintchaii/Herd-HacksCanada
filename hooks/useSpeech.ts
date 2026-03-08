@@ -1,11 +1,12 @@
 import * as Speech from 'expo-speech';
 
-export const speak = async (text: string) => {
+export const speak = async (text: string, onDone?: () => void) => {
   try {
     Speech.speak(text, {
       language: 'en-US',
       pitch: 1.2, // Cheerful
       rate: 1.0,  // Natural
+      onDone: onDone,
     });
   } catch (error) {
     console.error('Speech error:', error);

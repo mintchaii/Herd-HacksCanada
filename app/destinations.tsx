@@ -13,7 +13,7 @@ export default function DestinationsScreen() {
   const { touchEnabled } = useAppState();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const mainPrompt = 'Where do you want to go? Tap the blue button and speak your choice.';
+  const mainPrompt = 'Where do you want to go?';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();

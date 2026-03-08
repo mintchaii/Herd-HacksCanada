@@ -15,7 +15,7 @@ export default function TransportationScreen() {
 
   const titleDisplay = "Transport";
   const options = ["Uber", "Bus", "Car"];
-  const infoMsg = `Transportation options: Uber, Bus, and Car. Tap the blue button and speak your choice.`;
+  const infoMsg = `Transportation. would you like to travel to your destination by Uber, by bus or by car?`;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();

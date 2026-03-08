@@ -14,6 +14,8 @@ interface LoadingScreenProps {
   onDone: () => void;
 }
 
+import { speak } from '@/hooks/useSpeech';
+
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onDone }) => {
   const fadeAnim1 = useRef(new Animated.Value(0)).current;
   const fadeAnim2 = useRef(new Animated.Value(0)).current;
@@ -24,6 +26,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onDone }) => {
   const slideAnim3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    speak('Welcome to Gramco');
     // Stage 1: Fade In
     Animated.stagger(100, [
       Animated.timing(fadeAnim1, { toValue: 1, duration: 700, useNativeDriver: true }),
