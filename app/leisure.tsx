@@ -17,14 +17,13 @@ const COLORS = {
 };
 
 interface MenuButtonProps {
-  letter: string;
   label: string;
   icon: React.ReactNode;
   color: string;
   onPress: () => void;
 }
 
-const MenuButton: React.FC<MenuButtonProps> = ({ letter, label, icon, color, onPress }) => (
+const MenuButton: React.FC<MenuButtonProps> = ({ label, icon, color, onPress }) => (
   <TouchableOpacity 
     style={[styles.menuButton, { backgroundColor: color }]} 
     onPress={onPress}
@@ -33,7 +32,6 @@ const MenuButton: React.FC<MenuButtonProps> = ({ letter, label, icon, color, onP
     <View style={styles.iconContainer}>
       {icon}
     </View>
-    <Text style={styles.letterText}>{letter}</Text>
     <Text style={styles.labelButtonText}>{label}</Text>
   </TouchableOpacity>
 );
@@ -42,11 +40,13 @@ export default function LeisureMenu() {
   const router = useRouter();
   const { touchEnabled, setTouchEnabled } = useAppState();
 
+  const mainPrompt = 'Would you like to connect to neighbours or choose a destination? Tap the blue button or speak your choice.';
+
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
-    if (command.includes('connect') || command.includes('option a')) {
-      speak('Connecting you with others.');
-    } else if (command.includes('destination') || command.includes('option b')) {
+    if (command.includes('connect') || command.includes('neighbor')) {
+      speak('Connecting you with neighbours.');
+    } else if (command.includes('destination') || command.includes('choose')) {
       speak('Where would you like to go? opening map.');
       router.push('/destinations');
     } else if (command.includes('activate touch')) {
@@ -61,7 +61,7 @@ export default function LeisureMenu() {
   };
 
   const restartPrompt = () => {
-    speak('Options are: A, Connect. B, Destinations. Say your choice or use the blue button.');
+    speak(mainPrompt);
   };
 
   const { isListening, startListening, stopListening } = useVoiceControl(
@@ -77,11 +77,11 @@ export default function LeisureMenu() {
   );
 
   useEffect(() => {
-    speak('Options are: A, Connect. B, Destinations. Say your choice or use the blue button.');
+    speak(mainPrompt);
     
     const interval = setInterval(() => {
       if (!isListening) {
-        speak('Please choose Connect or Destinations.');
+        speak('Please choose to connect with neighbours or choose a destination.');
       }
     }, 20000);
     
@@ -100,15 +100,13 @@ export default function LeisureMenu() {
       <View style={styles.grid}>
         <View style={styles.row}>
           <MenuButton 
-            letter="A" 
-            label="Connect" 
+            label="Connect with Neighbours" 
             icon={<Users size={40} color="white" />} 
             color={COLORS.connect}
             onPress={() => console.log('Connect pressed')}
           />
           <MenuButton 
-            letter="B" 
-            label="Destinations" 
+            label="Choose a Destination" 
             icon={<Map size={40} color="white" />} 
             color={COLORS.destinations}
             onPress={() => router.push('/destinations')}
@@ -125,7 +123,7 @@ export default function LeisureMenu() {
           style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
           onPress={isListening ? stopListening : startListening}
         >
-          <Mic size={40} color="white" />
+          <Mic size={60} color="white" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.smallButton} onPress={() => touchEnabled && router.push('/')}>
@@ -143,85 +141,80 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    paddingTop: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 42,
     fontWeight: 'bold',
     color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   grid: {
     flex: 1,
-    paddingTop: 40,
+    paddingTop: 20,
     justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',
     gap: 20,
-    height: width * 0.45,
+    height: width * 0.55, // Increased height
   },
   menuButton: {
     flex: 1,
-    borderRadius: 30,
-    padding: 20,
+    borderRadius: 35,
+    padding: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 5,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
   iconContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    padding: 15,
-    borderRadius: 20,
-    marginBottom: 10,
-  },
-  letterText: {
-    fontSize: 50,
-    fontWeight: 'bold',
-    color: 'white',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 5,
+    padding: 20,
+    borderRadius: 25,
+    marginBottom: 15,
   },
   labelButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: 'white',
     textAlign: 'center',
+    lineHeight: 26,
   },
   bottomNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 30,
-    paddingBottom: 50,
+    paddingVertical: 20,
+    paddingBottom: 60,
     gap: 30,
   },
   largeMicButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     backgroundColor: COLORS.blue,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: COLORS.blue,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    elevation: 15,
   },
   smallButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#eee',
-    elevation: 3,
+    elevation: 4,
   },
 });

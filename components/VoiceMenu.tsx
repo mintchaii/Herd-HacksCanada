@@ -19,14 +19,13 @@ const COLORS = {
 };
 
 interface MenuButtonProps {
-  letter: string;
   label: string;
   icon: React.ReactNode;
   color: string;
   onPress: () => void;
 }
 
-const MenuButton: React.FC<MenuButtonProps> = ({ letter, label, icon, color, onPress }) => (
+const MenuButton: React.FC<MenuButtonProps> = ({ label, icon, color, onPress }) => (
   <TouchableOpacity 
     style={[styles.menuButton, { backgroundColor: color }]} 
     onPress={onPress}
@@ -35,7 +34,6 @@ const MenuButton: React.FC<MenuButtonProps> = ({ letter, label, icon, color, onP
     <View style={styles.iconContainer}>
       {icon}
     </View>
-    <Text style={styles.letterText}>{letter}</Text>
     <Text style={styles.labelButtonText}>{label}</Text>
   </TouchableOpacity>
 );
@@ -45,16 +43,16 @@ export default function VoiceMenu() {
   const { touchEnabled, setTouchEnabled } = useAppState();
   const [showTouchPopup, setShowTouchPopup] = useState(false);
   
-  const mainPrompt = 'What would you like to do today? Options are: A, Leisure. B, Technology Support. C, Errands. D, Favourites. Tap the blue button or speak your choice.';
+  const mainPrompt = 'What would you like to do today? Your options are: Leisure, Technology Support, Errands, or Favourites. Tap the blue button or speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
     console.log('Voice Command:', command);
 
-    const isOptionA = command === 'a' || command.includes('option a') || command.includes('say a') || command.includes('leisure');
-    const isOptionB = command === 'b' || command.includes('option b') || command.includes('say b') || command.includes('support') || command.includes('technology');
-    const isOptionC = command === 'c' || command.includes('option c') || command.includes('say c') || command.includes('errands');
-    const isOptionD = command === 'd' || command.includes('option d') || command.includes('say d') || command.includes('favourites') || command.includes('favorites');
+    const isOptionA = command.includes('leisure');
+    const isOptionB = command.includes('support') || command.includes('technology');
+    const isOptionC = command.includes('errands');
+    const isOptionD = command.includes('favourites') || command.includes('favorites');
 
     if (command.includes('activate touch')) {
       setTouchEnabled(true);
@@ -118,14 +116,12 @@ export default function VoiceMenu() {
       <View style={[styles.grid, !touchEnabled && { opacity: 0.8 }]}>
         <View style={styles.row}>
           <MenuButton 
-            letter="A" 
             label="Leisure" 
             icon={<MapPin size={40} color="#333" />} 
             color={COLORS.leisure}
             onPress={() => router.push('/leisure')}
           />
           <MenuButton 
-            letter="B" 
             label="Technology Support" 
             icon={<Smartphone size={40} color="#333" />} 
             color={COLORS.techSupport}
@@ -134,14 +130,12 @@ export default function VoiceMenu() {
         </View>
         <View style={styles.row}>
           <MenuButton 
-            letter="C" 
             label="Errands" 
             icon={<ShoppingCart size={40} color="#333" />} 
             color={COLORS.errands}
             onPress={() => console.log('Errands pressed')}
           />
           <MenuButton 
-            letter="D" 
             label="Favourites" 
             icon={<Star size={40} color="#333" />} 
             color={COLORS.favourites}
@@ -162,7 +156,7 @@ export default function VoiceMenu() {
           style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
           onPress={isListening ? stopListening : startListening}
         >
-          <Mic size={40} color="white" />
+          <Mic size={60} color="white" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.smallButton} onPress={() => touchEnabled && router.push('/')}>
@@ -183,15 +177,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 5,
     gap: 12,
-    marginTop: 20, // Push grid down more to avoid overlap with header
+    marginTop: 15,
   },
   header: {
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 20 : 40, // Increased for notches
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: 5,
   },
   headerTitle: {
-    fontSize: 52, // Slightly smaller for better fit
+    fontSize: 52,
     fontWeight: '900',
     color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
@@ -199,77 +193,69 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
-    flex: 0.33, // Reduced to fit more content below
+    gap: 15,
+    flex: 0.38, // Increased to make buttons bigger
   },
   menuButton: {
     flex: 1,
-    borderRadius: 30,
-    padding: 8, // Reduced padding to fit text better
+    borderRadius: 35,
+    padding: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    // Elevation for Android
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   iconContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    padding: 15,
-    borderRadius: 20,
-    marginBottom: 10,
-  },
-  letterText: {
-    fontSize: 50,
-    fontWeight: 'bold',
-    color: '#333',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 5,
+    padding: 20,
+    borderRadius: 25,
+    marginBottom: 15,
   },
   labelButtonText: {
-    fontSize: 16, // Reduced from 18
-    fontWeight: '700',
+    fontSize: 22, // Increased font size
+    fontWeight: '800',
     color: '#333',
     textAlign: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 10,
+    lineHeight: 28,
   },
   bottomNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 30,
-    paddingBottom: 50,
+    paddingVertical: 20,
+    paddingBottom: 60,
     gap: 30,
   },
   largeMicButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 150, // 1.5x size
+    height: 150,
+    borderRadius: 75,
     backgroundColor: COLORS.blue,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: COLORS.blue,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    elevation: 15,
   },
   smallButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#eee',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

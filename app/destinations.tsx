@@ -1,46 +1,284 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import { Mic, ChevronLeft, Home } from 'lucide-react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity, Modal, ActivityIndicator, Platform } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
+import * as Location from 'expo-location';
+import { Mic, ChevronLeft, Home, Phone, MapPin, Clock, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { speak, stopSpeaking } from '@/hooks/useSpeech';
+import { useVoiceControl } from '@/hooks/useVoiceControl';
+import { useAppState } from '@/hooks/useAppState';
 
 const { width, height } = Dimensions.get('window');
 
+// Using the key from app.json
+const GOOGLE_MAPS_API_KEY = 'AIzaSyAgVvn36Hu7ARvmF8hc1zUb5oqgNghGT1c';
+
+interface Place {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  type: 'restaurant' | 'grocery' | 'pharmacy';
+  address?: string;
+  phone?: string;
+  hours?: string[];
+}
+
 export default function DestinationsScreen() {
   const router = useRouter();
+  const { touchEnabled } = useAppState();
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const mapRef = useRef<MapView>(null);
+
+  const mainPrompt = 'I have loaded nearby restaurants, grocery stores, and pharmacies on the map. You can tap a pin to see details or say call to request a reservation.';
+
+  const handleCommand = (text: string) => {
+    const command = text.toLowerCase().trim();
+    console.log('Voice Command:', command);
+
+    if (command.includes('call') || command.includes('request')) {
+      if (selectedPlace) {
+        handleCallRequest();
+      } else {
+        speak('Please select a place on the map first.');
+      }
+    } else if (command.includes('back')) {
+      router.back();
+    } else if (command.includes('home')) {
+      router.push('/');
+    }
+  };
+
+  const restartPrompt = () => {
+    speak(mainPrompt);
+  };
+
+  const { isListening, startListening, stopListening } = useVoiceControl(
+    handleCommand,
+    () => stopSpeaking(),
+    () => restartPrompt()
+  );
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permission to access location was denied');
+        setLoading(false);
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+      fetchNearbyPlaces(location.coords.latitude, location.coords.longitude);
+    })();
+
+    speak(mainPrompt);
+    
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
+
+  const fetchNearbyPlaces = async (lat: number, lng: number) => {
+    try {
+      const types = ['restaurant', 'grocery_or_supermarket', 'pharmacy'];
+      const allPlaces: Place[] = [];
+
+      for (const type of types) {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1500&type=${type}&key=${GOOGLE_MAPS_API_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data.results) {
+          data.results.slice(0, 5).forEach((item: any) => {
+            allPlaces.push({
+              id: item.place_id,
+              name: item.name,
+              latitude: item.geometry.location.lat,
+              longitude: item.geometry.location.lng,
+              type: type === 'restaurant' ? 'restaurant' : type === 'pharmacy' ? 'pharmacy' : 'grocery',
+              address: item.vicinity
+            });
+          });
+        }
+      }
+      setPlaces(allPlaces);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching places:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleMarkerPress = async (place: Place) => {
+    setSelectedPlace(place);
+    setDetailsLoading(true);
+    setShowModal(true);
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.id}&fields=formatted_phone_number,opening_hours,formatted_address&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.result) {
+        const updatedPlace = {
+          ...place,
+          phone: data.result.formatted_phone_number,
+          address: data.result.formatted_address,
+          hours: data.result.opening_hours?.weekday_text
+        };
+        setSelectedPlace(updatedPlace);
+        speak(`${place.name}. Located at ${updatedPlace.address}. Would you like to request a call?`);
+      }
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const handleCallRequest = () => {
+    if (selectedPlace?.phone) {
+      speak(`Requesting a call to ${selectedPlace.name} at ${selectedPlace.phone}. This will be processed by our AI assistant.`);
+      // Store phone for backend call processing
+      setShowModal(false);
+    } else {
+      speak('I am sorry, I do not have a phone number for this location.');
+    }
+  };
+
+  const getMarkerColor = (type: string) => {
+    switch (type) {
+      case 'restaurant': return '#4285F4'; // Blue
+      case 'grocery': return '#34A853'; // Green
+      case 'pharmacy': return '#EA4335'; // Red
+      default: return '#FBBC05';
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4285F4" />
+        <Text style={styles.loadingText}>Locating nearby services...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          initialRegion={{
-            latitude: 37.78825,
-            longitude: -122.4324,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-        />
-        
-        <View style={styles.overlay}>
-           <View style={styles.speechBubble}>
-             <Text style={styles.speechText}>Where do you want to go?</Text>
-           </View>
-        </View>
+        {location && (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={{
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }}
+          >
+            <Marker
+              coordinate={{
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              }}
+              title="You are here"
+              pinColor="#000"
+            />
+            {places.map(place => (
+              <Marker
+                key={place.id}
+                coordinate={{ latitude: place.latitude, longitude: place.longitude }}
+                title={place.name}
+                pinColor={getMarkerColor(place.type)}
+                onPress={() => handleMarkerPress(place)}
+              />
+            ))}
+          </MapView>
+        )}
       </View>
+
+      <Modal
+        visible={showModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setShowModal(false)}>
+              <X size={24} color="#666" />
+            </TouchableOpacity>
+
+            {detailsLoading ? (
+              <ActivityIndicator size="large" color="#4285F4" />
+            ) : selectedPlace && (
+              <>
+                <Text style={styles.placeName}>{selectedPlace.name}</Text>
+                
+                <View style={styles.infoRow}>
+                  <MapPin size={20} color="#666" />
+                  <Text style={styles.infoText}>{selectedPlace.address}</Text>
+                </View>
+
+                {selectedPlace.phone && (
+                  <View style={styles.infoRow}>
+                    <Phone size={20} color="#666" />
+                    <Text style={styles.infoText}>{selectedPlace.phone}</Text>
+                  </View>
+                )}
+
+                {selectedPlace.hours && (
+                  <View style={styles.hoursContainer}>
+                    <View style={styles.infoRow}>
+                      <Clock size={20} color="#666" />
+                      <Text style={styles.infoText}>Opening Hours:</Text>
+                    </View>
+                    {selectedPlace.hours.map((day, index) => (
+                      <Text key={index} style={styles.hourLine}>{day}</Text>
+                    ))}
+                  </View>
+                )}
+
+                <TouchableOpacity 
+                  style={styles.requestButton}
+                  onPress={handleCallRequest}
+                >
+                  <Phone size={24} color="white" />
+                  <Text style={styles.requestButtonText}>Request Call</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
-          <ChevronLeft size={30} color="#333" />
+          <ChevronLeft size={40} color="#333" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.largeMicButton}>
-          <Mic size={40} color="white" />
+        <TouchableOpacity 
+          style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
+          onPress={isListening ? stopListening : startListening}
+        >
+          <Mic size={60} color="white" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.smallButton} onPress={() => router.push('/')}>
-          <Home size={30} color="#333" />
+          <Home size={40} color="#333" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -52,68 +290,121 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF9F0',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF9F0',
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 18,
+    color: '#666',
+  },
   mapContainer: {
     flex: 1,
     marginTop: 10,
     marginHorizontal: 10,
-    borderRadius: 30,
+    borderRadius: 40,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#eee',
-    elevation: 5,
+    elevation: 8,
   },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
-  overlay: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    padding: 30,
+    minHeight: height * 0.5,
+  },
+  closeButton: {
     position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
+    right: 30,
+    top: 30,
+    zIndex: 1,
   },
-  speechBubble: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  speechText: {
-    fontSize: 18,
-    fontWeight: '600',
+  placeName: {
+    fontSize: 32,
+    fontWeight: 'bold',
     color: '#333',
+    marginBottom: 20,
+    paddingRight: 40,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+    marginBottom: 15,
+  },
+  infoText: {
+    fontSize: 18,
+    color: '#444',
+    flex: 1,
+  },
+  hoursContainer: {
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  hourLine: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 35,
+    marginBottom: 2,
+  },
+  requestButton: {
+    backgroundColor: '#4285F4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 25,
+    borderRadius: 30,
+    gap: 15,
+    elevation: 5,
+  },
+  requestButtonText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   bottomNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
-    paddingBottom: 40,
+    paddingBottom: 60,
     gap: 30,
   },
   largeMicButton: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     backgroundColor: '#4285F4',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 10,
+    elevation: 15,
+    shadowColor: '#4285F4',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
   },
   smallButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#eee',
-    elevation: 3,
+    elevation: 4,
   },
 });

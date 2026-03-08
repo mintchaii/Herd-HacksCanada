@@ -21,13 +21,15 @@ export default function Transportation() {
   const router = useRouter();
   const { touchEnabled, setTouchEnabled } = useAppState();
 
+  const mainPrompt = 'Which transport would you like? Options are: Uber, Bus, or Walk. Speak your choice.';
+
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
-    if (command.includes('uber') || command.includes('option a')) {
+    if (command.includes('uber')) {
       handleUberChoice();
-    } else if (command.includes('bus') || command.includes('option b')) {
+    } else if (command.includes('bus')) {
       speak('Bus routes are being calculated.');
-    } else if (command.includes('walk') || command.includes('car') || command.includes('option c')) {
+    } else if (command.includes('walk') || command.includes('car')) {
       speak('Walking or driving directions will be shown.');
     } else if (command.includes('activate touch')) {
       setTouchEnabled(true);
@@ -41,7 +43,7 @@ export default function Transportation() {
   };
 
   const restartPrompt = () => {
-    speak('Options are: A, Uber. B, Bus. C, Walk or Car. Say your choice.');
+    speak(mainPrompt);
   };
 
   const { isListening, startListening, stopListening } = useVoiceControl(
@@ -57,13 +59,13 @@ export default function Transportation() {
   );
 
   useEffect(() => {
-    speak('Options are: A, Uber. B, Bus. C, Walk or Car. Say your choice.');
+    speak(mainPrompt);
     
     const interval = setInterval(() => {
       if (!isListening) {
         speak('Please choose Uber, Bus, or Walk.');
       }
-    }, 20000); // Updated to 20s
+    }, 20000);
     
     return () => {
       clearInterval(interval);
@@ -84,7 +86,6 @@ export default function Transportation() {
           text: "Yes, Book Uber", 
           onPress: () => {
              speak("Booking your Uber now using your saved credit card. It will arrive shortly.");
-             // Integration with Uber API would go here
           }
         }
       ]
@@ -102,41 +103,41 @@ export default function Transportation() {
           style={[styles.fullWidthButton, { backgroundColor: COLORS.uber }]} 
           onPress={handleUberChoice}
         >
-          <Car size={40} color="white" />
-          <Text style={styles.buttonLabel}>A: Uber</Text>
+          <Car size={50} color="white" />
+          <Text style={styles.buttonLabel}>Uber</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.fullWidthButton, { backgroundColor: COLORS.bus }]}
           onPress={() => speak("Bus routes are being calculated.")}
         >
-          <Bus size={40} color="white" />
-          <Text style={styles.buttonLabel}>B: Bus</Text>
+          <Bus size={50} color="white" />
+          <Text style={styles.buttonLabel}>Bus</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.fullWidthButton, { backgroundColor: COLORS.walk }]}
           onPress={() => speak("Walking or driving directions will be shown.")}
         >
-          <Footprints size={40} color="white" />
-          <Text style={styles.buttonLabel}>C: Walk/Car</Text>
+          <Footprints size={50} color="white" />
+          <Text style={styles.buttonLabel}>Walk/Car</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.smallButton} onPress={() => touchEnabled && router.back()}>
-          <ChevronLeft size={30} color="#333" />
+          <ChevronLeft size={40} color="#333" />
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
           onPress={isListening ? stopListening : startListening}
         >
-          <Mic size={40} color="white" />
+          <Mic size={60} color="white" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.smallButton} onPress={() => touchEnabled && router.push('/')}>
-          <Home size={30} color="#333" />
+          <Home size={40} color="#333" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -150,58 +151,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    paddingTop: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 42,
     fontWeight: 'bold',
     color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   grid: {
     flex: 1,
-    gap: 20,
+    gap: 25,
     paddingTop: 30,
+    justifyContent: 'center',
   },
   fullWidthButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 30,
-    borderRadius: 30,
-    gap: 20,
-    elevation: 5,
+    padding: 35,
+    borderRadius: 40,
+    gap: 30,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
   },
   buttonLabel: {
     color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '800',
   },
   bottomNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 30,
-    paddingBottom: 50,
+    paddingVertical: 20,
+    paddingBottom: 60,
     gap: 30,
   },
   largeMicButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     backgroundColor: COLORS.blue,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 10,
+    elevation: 15,
+    shadowColor: COLORS.blue,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
   },
   smallButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#eee',
-    elevation: 3,
+    elevation: 4,
   },
 });
