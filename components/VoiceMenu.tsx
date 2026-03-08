@@ -43,7 +43,7 @@ export default function VoiceMenu() {
   const { touchEnabled, setTouchEnabled } = useAppState();
   const [showTouchPopup, setShowTouchPopup] = useState(false);
   
-  const mainPrompt = 'What would you like to do? Choose from the options: leisure, technological support, errands or favourites. Tap the blue button and speak your choice.';
+  const mainPrompt = 'What would you like to do? Choose from the options: leisure, technology support, errands or favourites. Tap the blue button and speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
@@ -92,17 +92,10 @@ export default function VoiceMenu() {
   useEffect(() => {
     speak(mainPrompt);
     
-    const interval = setInterval(() => {
-      if (!isListening) {
-        speak(mainPrompt);
-      }
-    }, 10000);
-    
     return () => {
-      clearInterval(interval);
       stopSpeaking();
     };
-  }, [isListening]);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,7 +115,7 @@ export default function VoiceMenu() {
             onPress={() => router.push('/leisure')}
           />
           <MenuButton 
-            label="Technological Support" 
+            label="Technology Support" 
             icon={<Smartphone size={40} color="#333" />} 
             color={COLORS.techSupport}
             onPress={() => console.log('Tech Support pressed')}

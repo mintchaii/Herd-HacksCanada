@@ -12,14 +12,15 @@ export default function TransportationScreen() {
   const router = useRouter();
   const { touchEnabled } = useAppState();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const titleDisplay = "Transport";
   const options = ["Uber", "Bus", "Car"];
-  const infoMsg = `Transportation. would you like to travel to your destination by Uber, by bus or by car?`;
+  const infoMsg = `Transportation. would you like to travel to your destination by Uber, by bus or by car? Tap the blue button and speak your choice.`;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
-    resetTimer();
+    // resetTimer(); // Removed confirmed
 
     if (command.includes('uber')) {
       handleChoice('uber');
@@ -42,13 +43,11 @@ export default function TransportationScreen() {
   const stopAndClear = () => {
     stopSpeaking();
     if (timerRef.current) clearInterval(timerRef.current);
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current); // Clear transition timer
   };
 
   const resetTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      speak(infoMsg);
-    }, 10000);
+    // No repeating timer anymore
   };
 
   const { isListening, startListening, stopListening } = useVoiceControl(
@@ -56,16 +55,15 @@ export default function TransportationScreen() {
     () => stopSpeaking(),
     () => {
       speak(infoMsg);
-      resetTimer();
     }
   );
 
   useEffect(() => {
     speak(infoMsg);
-    resetTimer();
     
     return () => {
-      stopAndClear();
+      stopSpeaking();
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     };
   }, []);
 
