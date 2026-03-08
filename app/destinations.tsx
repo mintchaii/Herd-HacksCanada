@@ -3,7 +3,7 @@ import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Home, Mic } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Dimensions, ImageBackground, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -11,12 +11,14 @@ const { width, height } = Dimensions.get('window');
 export default function DestinationsScreen() {
   const router = useRouter();
   const { touchEnabled } = useAppState();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const mainPrompt = 'Where do you want to go?';
+  const mainPrompt = 'Where do you want to go? Tap the blue button and speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
     console.log('Voice Command:', command);
+    resetTimer();
 
     if (command.includes('next') || command.includes('yes') || command.includes('correct') || command.includes('eastside') || command.includes('mario')) {
       handleNavigateToDetails();
@@ -28,7 +30,8 @@ export default function DestinationsScreen() {
   };
 
   const handleNavigateToDetails = () => {
-    speak('Opening details for East Side Marios.');
+    stopSpeaking();
+    if (timerRef.current) clearInterval(timerRef.current);
     router.push({
       pathname: '/details',
       params: {
@@ -40,53 +43,65 @@ export default function DestinationsScreen() {
     });
   };
 
+  const resetTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      speak(mainPrompt);
+    }, 10000);
+  };
+
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => stopSpeaking(),
-    () => speak(mainPrompt)
+    () => {
+      speak(mainPrompt);
+      resetTimer();
+    }
   );
 
   useEffect(() => {
     speak(mainPrompt);
+    resetTimer();
     return () => {
       stopSpeaking();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ImageBackground 
-        source={require('@/assets/images/map_static.png')} 
-        style={styles.mapBackground}
-        resizeMode="cover"
+      <TouchableOpacity 
+        style={styles.clickableArea} 
+        activeOpacity={1} 
+        onPress={handleNavigateToDetails}
       >
-        <View style={styles.overlay}>
-          <Text style={styles.promptText}>{mainPrompt}</Text>
-          
-          {/* Transparent touchable area for the red pin neighborhood */}
-          <TouchableOpacity 
-            style={styles.pinHotspot}
-            onPress={handleNavigateToDetails}
-          />
-        </View>
+        <ImageBackground 
+          source={require('@/assets/images/map_static.png')} 
+          style={styles.mapBackground}
+          resizeMode="contain" // "contain" or custom zoom logic
+        >
+          <View style={styles.overlay}>
+            <Text style={styles.promptText}>Where do you want to go?</Text>
+          </View>
 
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
-            <ChevronLeft size={40} color="#333" />
-          </TouchableOpacity>
+          <View style={styles.bottomNav}>
+            <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
+              <ChevronLeft size={40} color="#333" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
-            onPress={isListening ? stopListening : startListening}
-          >
-            <Mic size={60} color="white" />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
+              onPress={isListening ? stopListening : startListening}
+            >
+              <Mic size={60} color="white" />
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.smallButton} onPress={() => router.push('/')}>
-            <Home size={40} color="#333" />
-          </TouchableOpacity>
-        </View>
-      </ImageBackground>
+            <TouchableOpacity style={styles.smallButton} onPress={() => router.push('/')}>
+              <Home size={40} color="#333" />
+            </TouchableOpacity>
+          </View>
+        </ImageBackground>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -94,39 +109,36 @@ export default function DestinationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#fff', // White background for the zoom-out look
+  },
+  clickableArea: {
+    flex: 1,
   },
   mapBackground: {
     flex: 1,
     width: width,
     height: height,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   overlay: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
+    width: '100%',
   },
   promptText: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 25,
+    paddingVertical: 15,
+    borderRadius: 20,
     overflow: 'hidden',
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
-  pinHotspot: {
-    position: 'absolute',
-    top: '40%', // Estimated based on the red pin location in common map crops
-    left: '50%',
-    width: 150,
-    height: 150,
-    marginLeft: -75,
-    marginTop: -75,
-    // backgroundColor: 'rgba(255, 0, 0, 0.2)', // For debugging, make it transparent later
+    elevation: 5,
   },
   bottomNav: {
     position: 'absolute',
@@ -139,7 +151,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingBottom: 60,
     gap: 30,
-    backgroundColor: 'rgba(255, 249, 240, 0.5)',
+    backgroundColor: 'rgba(255, 249, 240, 0.4)',
   },
   largeMicButton: {
     width: 150,

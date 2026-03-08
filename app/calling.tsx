@@ -1,65 +1,38 @@
-import { useAppState } from '@/hooks/useAppState';
 import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ChevronLeft, Home, Mic } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Dimensions, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-export default function DetailsScreen() {
+export default function StatusScreen({ 
+  title = "Calling 519-886-8388...", 
+  speechText = "Calling 519-886-8388..." 
+}: { 
+  title?: string; 
+  speechText?: string; 
+}) {
   const router = useRouter();
-  const params = useLocalSearchParams<{ 
-    name: string; 
-    address: string; 
-    phone: string; 
-    hours: string; 
-  }>();
-  const { touchEnabled } = useAppState();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const nameDisplay = "East Side Mario's";
-  const addressDisplay = "Address: 450 King St N";
-  const hoursDisplay = "Hours: (S) 11-10 | (M-Th) 11-9 | (F-S) 11-11";
-  const phoneDisplay = "Call: 519-886-8388";
-
-  const infoMsg = `${nameDisplay}. ${addressDisplay}. ${hoursDisplay}. ${phoneDisplay}. Tap the blue button and speak your choice.`;
+  const fullPrompt = `${speechText} Tap the blue button and speak your choice.`;
 
   const handleCommand = (text: string) => {
-    const command = text.toLowerCase();
+    const command = text.toLowerCase().trim();
     resetTimer();
-
-    if (command.includes('call') || command.includes('phone') || command.includes('number')) {
-      handleCall();
-    } else if (command.includes('address') || command.includes('transport') || command.includes('next') || command.includes('go')) {
-      handleNext();
-    } else if (command.includes('back')) {
+    if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
       router.push('/');
     }
   };
 
-  const handleCall = () => {
-    stopAndClear();
-    router.push('/calling');
-  };
-
-  const handleNext = () => {
-    stopAndClear();
-    router.push('/transportation');
-  };
-
-  const stopAndClear = () => {
-    stopSpeaking();
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      speak(infoMsg);
+      speak(fullPrompt);
     }, 10000);
   };
 
@@ -67,38 +40,24 @@ export default function DetailsScreen() {
     handleCommand,
     () => stopSpeaking(),
     () => {
-      speak(infoMsg);
+      speak(fullPrompt);
       resetTimer();
     }
   );
 
   useEffect(() => {
-    speak(infoMsg);
+    speak(fullPrompt);
     resetTimer();
-    
     return () => {
-      stopAndClear();
+      stopSpeaking();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>{nameDisplay}</Text>
-        
-        <View style={styles.infoList}>
-          <TouchableOpacity style={styles.infoItem} onPress={handleNext}>
-            <Text style={styles.infoText}>{addressDisplay}</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoText}>{hoursDisplay}</Text>
-          </View>
-          
-          <TouchableOpacity style={styles.infoItem} onPress={handleCall}>
-            <Text style={styles.infoText}>{phoneDisplay}</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.statusText}>{title}</Text>
       </View>
 
       <View style={styles.bottomNav}>
@@ -128,39 +87,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 30,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
-  title: {
-    fontSize: 48,
+  statusText: {
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
-    marginBottom: 50,
-    letterSpacing: 2,
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
-  infoList: {
-    width: '100%',
-    gap: 25,
-  },
-  infoItem: {
-    backgroundColor: 'white',
-    padding: 25,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  infoText: {
-    fontSize: 26,
-    color: '#444',
-    fontWeight: '600',
-    textAlign: 'center',
-    lineHeight: 36,
   },
   bottomNav: {
     flexDirection: 'row',

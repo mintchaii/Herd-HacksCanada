@@ -13,20 +13,20 @@ export default function TransportationScreen() {
   const { touchEnabled } = useAppState();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const titleDisplay = "Transport";
-  const options = ["Uber", "Bus", "Car/Walking"];
-  const infoMsg = `Transportation options: ${options.join(', ')}. Please choose one.`;
+  const titleDisplay = "Transportation";
+  const options = ["Uber", "Bus", "Car"];
+  const infoMsg = `Transportation options: Uber, Bus, and Car. Tap the blue button and speak your choice.`;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
-    resetTimer(); // Reset timer on any voice command
+    resetTimer();
 
     if (command.includes('uber')) {
-      handleChoice('Uber');
+      handleChoice('uber');
     } else if (command.includes('bus')) {
-      handleChoice('Bus');
-    } else if (command.includes('car') || command.includes('walk')) {
-      handleChoice('Car/Walking');
+      handleChoice('bus');
+    } else if (command.includes('car')) {
+      handleChoice('car');
     } else if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
@@ -34,16 +34,21 @@ export default function TransportationScreen() {
     }
   };
 
-  const handleChoice = (choice: string) => {
-    speak(`You selected ${choice}.`);
-    // In a real app, this would initiate booking or navigation
+  const handleChoice = (path: string) => {
+    stopAndClear();
+    router.push(`/${path}`);
+  };
+
+  const stopAndClear = () => {
+    stopSpeaking();
+    if (timerRef.current) clearInterval(timerRef.current);
   };
 
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       speak(infoMsg);
-    }, 8000);
+    }, 10000);
   };
 
   const { isListening, startListening, stopListening } = useVoiceControl(
@@ -60,8 +65,7 @@ export default function TransportationScreen() {
     resetTimer();
     
     return () => {
-      stopSpeaking();
-      if (timerRef.current) clearInterval(timerRef.current);
+      stopAndClear();
     };
   }, []);
 
@@ -75,7 +79,7 @@ export default function TransportationScreen() {
             <TouchableOpacity 
               key={index} 
               style={styles.infoItem} 
-              onPress={() => handleChoice(option)}
+              onPress={() => handleChoice(option.toLowerCase())}
             >
               <Text style={styles.infoText}>{option}</Text>
             </TouchableOpacity>
