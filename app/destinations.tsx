@@ -76,9 +76,9 @@ export default function DestinationsScreen() {
         onPress={handleNavigateToDetails}
       >
         <ImageBackground 
-          source={require('@/assets/images/map_static.png')} 
+          source={require('@/assets/images/map_static_v2.png')} 
           style={styles.mapBackground}
-          resizeMode="contain" // "contain" or custom zoom logic
+          resizeMode="cover"
         >
           <View style={styles.overlay}>
             <Text style={styles.promptText}>Where do you want to go?</Text>

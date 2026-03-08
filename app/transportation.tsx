@@ -13,7 +13,7 @@ export default function TransportationScreen() {
   const { touchEnabled } = useAppState();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const titleDisplay = "Transportation";
+  const titleDisplay = "Transport";
   const options = ["Uber", "Bus", "Car"];
   const infoMsg = `Transportation options: Uber, Bus, and Car. Tap the blue button and speak your choice.`;
 
@@ -36,7 +36,7 @@ export default function TransportationScreen() {
 
   const handleChoice = (path: string) => {
     stopAndClear();
-    router.push(`/${path}`);
+    router.push(`/${path}` as any);
   };
 
   const stopAndClear = () => {

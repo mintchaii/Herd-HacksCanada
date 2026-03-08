@@ -4,8 +4,8 @@ export const speak = async (text: string) => {
   try {
     Speech.speak(text, {
       language: 'en-US',
-      pitch: 1.0,
-      rate: 0.9,
+      pitch: 1.2, // Cheerful
+      rate: 1.0,  // Natural
     });
   } catch (error) {
     console.error('Speech error:', error);
