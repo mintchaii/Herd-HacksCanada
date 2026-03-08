@@ -10,8 +10,15 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 const { width, height } = Dimensions.get('window');
 
-// Using the key from app.json
-const GOOGLE_MAPS_API_KEY = 'AIzaSyAgVvn36Hu7ARvmF8hc1zUb5oqgNghGT1c';
+const UW_COORDS = {
+  latitude: 43.4723,
+  longitude: -80.5449,
+};
+const REGIONAL_RADIUS = 25000; // 25 km
+const DEFAULT_RADIUS = 1500; // 1.5 km
+
+// Using the key from environment or app.js config
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAgVvn36Hu7ARvmF8hc1zUb5oqgNghGT1c';
 
 interface Place {
   id: string;
@@ -52,11 +59,28 @@ export default function DestinationsScreen() {
       } else {
         speak('Please select a place on the map first.');
       }
+    } else if (command.includes('direction')) {
+      handleDirections();
     } else if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
       router.push('/');
     }
+  };
+
+  const handleDirections = () => {
+    speak('Centering map on the University of Waterloo and searching for services within 25 kilometers.');
+    setLoading(true);
+    
+    // Set to UW region
+    const region = {
+      ...UW_COORDS,
+      latitudeDelta: 0.3, // Larger delta for 25km view
+      longitudeDelta: 0.3,
+    };
+    
+    mapRef.current?.animateToRegion(region, 1000);
+    fetchNearbyPlaces(UW_COORDS.latitude, UW_COORDS.longitude, REGIONAL_RADIUS);
   };
 
   const restartPrompt = () => {
@@ -90,19 +114,21 @@ export default function DestinationsScreen() {
     };
   }, []);
 
-  const fetchNearbyPlaces = async (lat: number, lng: number) => {
+  const fetchNearbyPlaces = async (lat: number, lng: number, radius: number = DEFAULT_RADIUS) => {
     try {
       const types = ['restaurant', 'grocery_or_supermarket', 'pharmacy'];
       const allPlaces: Place[] = [];
 
       for (const type of types) {
         const response = await fetch(
-          `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1500&type=${type}&key=${GOOGLE_MAPS_API_KEY}`
+          `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${GOOGLE_MAPS_API_KEY}`
         );
         const data = await response.json();
 
         if (data.results) {
-          data.results.slice(0, 5).forEach((item: any) => {
+          // Increase limit for regional view
+          const limit = radius > 5000 ? 15 : 5;
+          data.results.slice(0, limit).forEach((item: any) => {
             allPlaces.push({
               id: item.place_id,
               name: item.name,
@@ -241,6 +267,16 @@ export default function DestinationsScreen() {
               </>
             )}
           </MapView>
+        )}
+        
+        {mapReady && (
+          <TouchableOpacity 
+            style={styles.directionsButton} 
+            onPress={handleDirections}
+          >
+            <MapPin size={28} color="white" />
+            <Text style={styles.directionsButtonText}>Waterloo Hub</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -430,6 +466,28 @@ const styles = StyleSheet.create({
   requestButtonText: {
     color: 'white',
     fontSize: 24,
+    fontWeight: 'bold',
+  },
+  directionsButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: '#34A853',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 10,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  directionsButtonText: {
+    color: 'white',
+    fontSize: 18,
     fontWeight: 'bold',
   },
   bottomNav: {
