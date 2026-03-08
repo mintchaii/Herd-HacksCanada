@@ -23,8 +23,16 @@
       },
       "package": "com.mintchaii.gramco",
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAgVvn36Hu7ARvmF8hc1zUb5oqgNghGT1c"
+        }
+      },
+      "newArchEnabled": true
     },
     "web": {
       "output": "static",

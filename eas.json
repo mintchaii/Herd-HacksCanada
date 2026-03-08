@@ -8,7 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "BLAND_AI_API_KEY": "66868e27-fa18-4e9d-976d-5bbe5b87fabb",
+        "EXPO_PUBLIC_BLAND_AI_API_KEY": "66868e27-fa18-4e9d-976d-5bbe5b87fabb"
       }
     },
     "preview": {
