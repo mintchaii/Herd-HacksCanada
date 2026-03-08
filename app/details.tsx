@@ -1,32 +1,38 @@
 import { useAppState } from '@/hooks/useAppState';
 import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Home, Mic } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Dimensions, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-export default function TransportationScreen() {
+export default function DetailsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ 
+    name: string; 
+    address: string; 
+    phone: string; 
+    hours: string; 
+  }>();
   const { touchEnabled } = useAppState();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const titleDisplay = "Transport";
-  const options = ["Uber", "Bus", "Car/Walking"];
-  const infoMsg = `Transportation options: ${options.join(', ')}. Please choose one.`;
+  // User specifically requested these exact strings:
+  const nameDisplay = "East Side Mario's";
+  const addressDisplay = "Address: 450 King St N";
+  const hoursDisplay = "Hours: (S) 11-10 | (M-Th) 11-9 | (F-S) 11-11";
+  const phoneDisplay = "Call: 519-886-8388";
+
+  const infoMsg = `${nameDisplay}. ${addressDisplay}. ${hoursDisplay}. ${phoneDisplay}.`;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
     resetTimer(); // Reset timer on any voice command
 
-    if (command.includes('uber')) {
-      handleChoice('Uber');
-    } else if (command.includes('bus')) {
-      handleChoice('Bus');
-    } else if (command.includes('car') || command.includes('walk')) {
-      handleChoice('Car/Walking');
+    if (command.includes('address') || command.includes('transport') || command.includes('next') || command.includes('go')) {
+      handleNext();
     } else if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
@@ -34,9 +40,10 @@ export default function TransportationScreen() {
     }
   };
 
-  const handleChoice = (choice: string) => {
-    speak(`You selected ${choice}.`);
-    // In a real app, this would initiate booking or navigation
+  const handleNext = () => {
+    stopSpeaking();
+    if (timerRef.current) clearInterval(timerRef.current);
+    router.push('/transportation');
   };
 
   const resetTimer = () => {
@@ -68,18 +75,20 @@ export default function TransportationScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>{titleDisplay}</Text>
+        <Text style={styles.title}>{nameDisplay}</Text>
         
         <View style={styles.infoList}>
-          {options.map((option, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.infoItem} 
-              onPress={() => handleChoice(option)}
-            >
-              <Text style={styles.infoText}>{option}</Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity style={styles.infoItem} onPress={handleNext}>
+            <Text style={styles.infoText}>{addressDisplay}</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.infoItem}>
+            <Text style={styles.infoText}>{hoursDisplay}</Text>
+          </View>
+          
+          <TouchableOpacity style={styles.infoItem} onPress={handleNext}>
+            <Text style={styles.infoText}>{phoneDisplay}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -115,32 +124,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
-    marginBottom: 60,
+    marginBottom: 50,
+    letterSpacing: 2, // Slightly more spaced out
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   infoList: {
     width: '100%',
-    gap: 30,
+    gap: 25,
   },
   infoItem: {
     backgroundColor: 'white',
-    padding: 30,
-    borderRadius: 25,
-    elevation: 6,
+    padding: 25,
+    borderRadius: 20,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   infoText: {
-    fontSize: 32,
-    color: '#333',
-    fontWeight: '800',
+    fontSize: 26,
+    color: '#444',
+    fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 36,
   },
   bottomNav: {
     flexDirection: 'row',
