@@ -3,7 +3,7 @@ import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Clock, Home, MapPin, Mic, Phone, X } from 'lucide-react-native';
+import { Car, ChevronLeft, Clock, Home, MapPin, Mic, Phone, X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Modal, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -31,34 +31,90 @@ interface Place {
   hours?: string[];
 }
 
-import { makeCall } from '@/utils/blandAI';
+const MOCK_PLACES: Place[] = [
+  {
+    id: '1',
+    name: 'Eastside Marios',
+    latitude: 43.4745,
+    longitude: -80.5228,
+    type: 'restaurant',
+    address: '450 King St N, Waterloo, ON N2J 2Z6',
+    phone: '519-886-3000',
+    hours: ['Monday - Sunday: 11:00 AM - 11:00 PM'],
+  },
+  {
+    id: '2',
+    name: 'University Grill',
+    latitude: 43.4720,
+    longitude: -80.5440,
+    type: 'restaurant',
+    address: '200 University Ave W, Waterloo, ON',
+    phone: '519-555-0101',
+  },
+  {
+    id: '3',
+    name: 'Shoppers Drug Mart',
+    latitude: 43.4760,
+    longitude: -80.5240,
+    type: 'pharmacy',
+    address: 'Conestoga Mall, Waterloo, ON',
+    phone: '519-555-0102',
+  },
+  {
+    id: '4',
+    name: 'Sobeys Columbia',
+    latitude: 43.4800,
+    longitude: -80.5400,
+    type: 'grocery',
+    address: 'Northfield Dr W, Waterloo, ON',
+    phone: '519-555-0103',
+  },
+  {
+    id: '5',
+    name: 'Waterloo Pharmacy',
+    latitude: 43.4680,
+    longitude: -80.5200,
+    type: 'pharmacy',
+    address: 'King St S, Waterloo, ON',
+  },
+  {
+    id: '6',
+    name: 'Zehrs Beechwood',
+    latitude: 43.4600,
+    longitude: -80.5550,
+    type: 'grocery',
+    address: 'Fischer-Hallman Rd, Waterloo, ON',
+  }
+];
 
 export default function DestinationsScreen() {
   const router = useRouter();
   const { touchEnabled } = useAppState();
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [places, setPlaces] = useState<Place[]>([]);
+  const [places, setPlaces] = useState<Place[]>(MOCK_PLACES);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
-  const [detailsLoading, setDetailsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const mapRef = useRef<MapView>(null);
 
-  const mainPrompt = 'I have loaded nearby restaurants, grocery stores, and pharmacies on the map. You can tap a pin to see details or say call to request a reservation.';
+  const mainPrompt = 'I have loaded restaurants, grocery stores, and pharmacies in the Waterloo region. You can tap a pin to see details. Eastside Marios is located on King Street.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
     console.log('Voice Command:', command);
 
-    if (command.includes('call') || command.includes('request')) {
+    if (command.includes('phone') || command.includes('call') || command.includes('transportation')) {
       if (selectedPlace) {
         handleCallRequest();
       } else {
         speak('Please select a place on the map first.');
       }
+    } else if (command.includes('eastside') || command.includes('mario')) {
+      const em = MOCK_PLACES.find(p => p.name.includes('Eastside'));
+      if (em) handleMarkerPress(em);
     } else if (command.includes('direction')) {
       handleDirections();
     } else if (command.includes('back')) {
@@ -69,18 +125,15 @@ export default function DestinationsScreen() {
   };
 
   const handleDirections = () => {
-    speak('Centering map on the University of Waterloo and searching for services within 25 kilometers.');
-    setLoading(true);
+    speak('Centering map on the University of Waterloo hub.');
     
-    // Set to UW region
     const region = {
       ...UW_COORDS,
-      latitudeDelta: 0.3, // Larger delta for 25km view
-      longitudeDelta: 0.3,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
     };
     
     mapRef.current?.animateToRegion(region, 1000);
-    fetchNearbyPlaces(UW_COORDS.latitude, UW_COORDS.longitude, REGIONAL_RADIUS);
   };
 
   const restartPrompt = () => {
@@ -98,13 +151,16 @@ export default function DestinationsScreen() {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setErrorMsg('Permission to access location was denied');
-        setLoading(false);
-        return;
+        // Fallback to UW if no permission
+        setLocation({
+          coords: { ...UW_COORDS, accuracy: 1, altitude: 1, altitudeAccuracy: 1, heading: 1, speed: 1 },
+          timestamp: Date.now()
+        } as any);
+      } else {
+        let location = await Location.getCurrentPositionAsync({});
+        setLocation(location);
       }
-
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
-      fetchNearbyPlaces(location.coords.latitude, location.coords.longitude);
+      setLoading(false);
     })();
 
     speak(mainPrompt);
@@ -114,94 +170,32 @@ export default function DestinationsScreen() {
     };
   }, []);
 
-  const fetchNearbyPlaces = async (lat: number, lng: number, radius: number = DEFAULT_RADIUS) => {
-    try {
-      const types = ['restaurant', 'grocery_or_supermarket', 'pharmacy'];
-      const allPlaces: Place[] = [];
-
-      for (const type of types) {
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${GOOGLE_MAPS_API_KEY}`
-        );
-        const data = await response.json();
-
-        if (data.results) {
-          // Increase limit for regional view
-          const limit = radius > 5000 ? 15 : 5;
-          data.results.slice(0, limit).forEach((item: any) => {
-            allPlaces.push({
-              id: item.place_id,
-              name: item.name,
-              latitude: item.geometry.location.lat,
-              longitude: item.geometry.location.lng,
-              type: type === 'restaurant' ? 'restaurant' : type === 'pharmacy' ? 'pharmacy' : 'grocery',
-              address: item.vicinity
-            });
-          });
-        }
-      }
-      setPlaces(allPlaces);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching places:', error);
-      setLoading(false);
-    }
-  };
-
-  const handleMarkerPress = async (place: Place) => {
+  const handleMarkerPress = (place: Place) => {
     setSelectedPlace(place);
-    setDetailsLoading(true);
     setShowModal(true);
-
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.id}&fields=formatted_phone_number,opening_hours,formatted_address&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
-
-      if (data.result) {
-        const updatedPlace = {
-          ...place,
-          phone: data.result.formatted_phone_number,
-          address: data.result.formatted_address,
-          hours: data.result.opening_hours?.weekday_text
-        };
-        setSelectedPlace(updatedPlace);
-        speak(`${place.name}. Located at ${updatedPlace.address}. Would you like to request a call?`);
-      }
-    } catch (error) {
-      console.error('Error fetching place details:', error);
-    } finally {
-      setDetailsLoading(false);
-    }
+    
+    let detailMsg = `${place.name}. `;
+    if (place.address) detailMsg += `Address: ${place.address}. `;
+    if (place.phone) detailMsg += `Phone Number: ${place.phone}. `;
+    if (place.hours) detailMsg += `Business Hours: ${place.hours[0]}. `;
+    detailMsg += "Would you like to see transportation options?";
+    
+    speak(detailMsg);
   };
 
-  const handleCallRequest = async () => {
-    if (selectedPlace?.phone) {
-      speak(`Calling ${selectedPlace.name} on your behalf.`);
-      
-      try {
-        await makeCall(
-          selectedPlace.phone,
-          `I am calling to make a reservation or inquiry at ${selectedPlace.name}. Please help the customer with their request.`,
-          'the user'
-        );
-        speak('Call has been placed successfully!');
-      } catch (error) {
-        speak('Sorry, I was unable to place the call. Please try again.');
-      }
-      
+  const handleCallRequest = () => {
+    if (selectedPlace) {
+      speak(`Opening transportation options for ${selectedPlace.name}.`);
       setShowModal(false);
-    } else {
-      speak('Sorry, I do not have a phone number for this location.');
+      router.push('/transportation');
     }
   };
 
   const getMarkerColor = (type: string) => {
     switch (type) {
-      case 'restaurant': return '#4285F4'; // Blue
-      case 'grocery': return '#34A853'; // Green
-      case 'pharmacy': return '#EA4335'; // Red
+      case 'restaurant': return '#800080'; // Purple
+      case 'pharmacy': return '#FFA500'; // Orange
+      case 'grocery': return '#FFFF00'; // Yellow
       default: return '#FBBC05';
     }
   };
@@ -241,8 +235,8 @@ export default function DestinationsScreen() {
             initialRegion={{
               latitude: location?.coords?.latitude ?? 43.6532,
               longitude: location?.coords?.longitude ?? -79.3832,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
+              latitudeDelta: 0.1,
+              longitudeDelta: 0.1,
             }}
           >
             {mapReady && (
@@ -311,9 +305,7 @@ export default function DestinationsScreen() {
               <X size={24} color="#666" />
             </TouchableOpacity>
 
-            {detailsLoading ? (
-              <ActivityIndicator size="large" color="#4285F4" />
-            ) : selectedPlace && (
+            {selectedPlace && (
               <>
                 <Text style={styles.placeName}>{selectedPlace.name}</Text>
 
@@ -345,8 +337,8 @@ export default function DestinationsScreen() {
                   style={styles.requestButton}
                   onPress={handleCallRequest}
                 >
-                  <Phone size={24} color="white" />
-                  <Text style={styles.requestButtonText}>Request Call</Text>
+                  <Car size={24} color="white" />
+                  <Text style={styles.requestButtonText}>Transportation</Text>
                 </TouchableOpacity>
               </>
             )}

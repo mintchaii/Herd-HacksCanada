@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Platform, Alert } from 'react-native';
 import { Car, Bus, Footprints, Mic, ChevronLeft, Home } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
 import { useAppState } from '@/hooks/useAppState';
-import { useEffect } from 'react';
 
 const { width } = Dimensions.get('window');
 
@@ -19,25 +18,21 @@ const COLORS = {
 
 export default function Transportation() {
   const router = useRouter();
-  const { touchEnabled, setTouchEnabled } = useAppState();
+  const { touchEnabled } = useAppState();
 
-  const mainPrompt = 'Which transport would you like? Options are: Uber, Bus, or Walk. Speak your choice.';
+  const mainPrompt = 'Transportation options: Uber, Bus, and Car or Walk. Please choose one.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
     if (command.includes('uber')) {
       handleUberChoice();
     } else if (command.includes('bus')) {
-      speak('Bus routes are being calculated.');
-    } else if (command.includes('walk') || command.includes('car')) {
-      speak('Walking or driving directions will be shown.');
-    } else if (command.includes('activate touch')) {
-      setTouchEnabled(true);
-      speak('Touch screen activated.');
-    } else if (command.includes('deactivate touch')) {
-      setTouchEnabled(false);
-      speak('Touch screen deactivated.');
-    } else if (command.includes('back') || command.includes('home')) {
+      handleBusChoice();
+    } else if (command.includes('walk') || command.includes('car') || command.includes('drive')) {
+      handleWalkChoice();
+    } else if (command.includes('back')) {
+      router.back();
+    } else if (command.includes('home')) {
       router.push('/');
     }
   };
@@ -49,47 +44,35 @@ export default function Transportation() {
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => {
-      console.log('User started speaking, interrupting...');
       stopSpeaking();
     },
     () => {
-      console.log('Mic stopped without command, restarting prompt.');
       restartPrompt();
     }
   );
 
   useEffect(() => {
     speak(mainPrompt);
-    
-    const interval = setInterval(() => {
-      if (!isListening) {
-        speak('Please choose Uber, Bus, or Walk.');
-      }
-    }, 20000);
-    
     return () => {
-      clearInterval(interval);
       stopSpeaking();
     };
-  }, [isListening]);
+  }, []);
 
-  const handleUberChoice = async () => {
-    const message = "Confirm: Would you like to call a single-person Uber to the restaurant to arrive 5 to 10 minutes before your reservation?";
-    await speak(message);
-    
-    Alert.alert(
-      "Confirm Uber",
-      message,
-      [
-        { text: "No", style: "cancel" },
-        { 
-          text: "Yes, Book Uber", 
-          onPress: () => {
-             speak("Booking your Uber now using your saved credit card. It will arrive shortly.");
-          }
-        }
-      ]
-    );
+  const handleUberChoice = () => {
+    const message = "Uber: Confirming a single-person Uber to Eastside Marios. It will arrive in 5 minutes.";
+    speak(message);
+    Alert.alert("Confirm Uber", message, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Book Uber", onPress: () => speak("Booking your Uber now.") }
+    ]);
+  };
+
+  const handleBusChoice = () => {
+    speak("Bus: The next bus 202 Express departs in 8 minutes from University Avenue.");
+  };
+
+  const handleWalkChoice = () => {
+    speak("Car and Walk: Driving takes 6 minutes. Walking takes 25 minutes via King Street.");
   };
 
   return (
@@ -109,7 +92,7 @@ export default function Transportation() {
 
         <TouchableOpacity 
           style={[styles.fullWidthButton, { backgroundColor: COLORS.bus }]}
-          onPress={() => speak("Bus routes are being calculated.")}
+          onPress={handleBusChoice}
         >
           <Bus size={50} color="white" />
           <Text style={styles.buttonLabel}>Bus</Text>
@@ -117,10 +100,10 @@ export default function Transportation() {
 
         <TouchableOpacity 
           style={[styles.fullWidthButton, { backgroundColor: COLORS.walk }]}
-          onPress={() => speak("Walking or driving directions will be shown.")}
+          onPress={handleWalkChoice}
         >
           <Footprints size={50} color="white" />
-          <Text style={styles.buttonLabel}>Walk/Car</Text>
+          <Text style={styles.buttonLabel}>Car/Walk</Text>
         </TouchableOpacity>
       </View>
 
@@ -153,9 +136,10 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     alignItems: 'center',
+    marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: 'bold',
     color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
@@ -163,7 +147,6 @@ const styles = StyleSheet.create({
   grid: {
     flex: 1,
     gap: 25,
-    paddingTop: 30,
     justifyContent: 'center',
   },
   fullWidthButton: {
@@ -180,7 +163,7 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     color: 'white',
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
   },
   bottomNav: {
