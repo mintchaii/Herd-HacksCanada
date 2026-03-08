@@ -5,11 +5,10 @@ import { StatusScreen } from './calling';
 
 export default function UberScreen() {
   const router = useRouter();
-  const onFinished = () => {
-    setTimeout(() => {
-      router.push('/uber-booked' as any);
-    }, 3500);
-  };
-
-  return <StatusScreen title="Calling an uber..." speechText="Calling an uber" onFinished={onFinished} />;
+  
+  return <StatusScreen 
+    title="Calling an uber..." 
+    speechText="Calling an uber" 
+    onNext={() => router.push('/uber-booked' as any)} 
+  />;
 }

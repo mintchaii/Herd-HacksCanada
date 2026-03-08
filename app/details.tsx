@@ -32,9 +32,16 @@ export default function DetailsScreen() {
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
 
+    const isConfirmation = 
+      command.includes('ok') || 
+      command.includes('great') || 
+      command.includes('next') || 
+      command.includes('thank you') || 
+      command.includes('confirmed');
+
     if (command.includes('call') || command.includes('phone') || command.includes('number')) {
       handleCall();
-    } else if (command.includes('address') || command.includes('transport') || command.includes('next') || command.includes('go')) {
+    } else if (isConfirmation || command.includes('address') || command.includes('transport') || command.includes('go')) {
       handleNext();
     } else if (command.includes('back')) {
       router.back();
@@ -91,27 +98,33 @@ export default function DetailsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>{nameDisplay}</Text>
-        
-        <View style={styles.infoList}>
-          <TouchableOpacity style={styles.infoItem} onPress={handleNext}>
-            <Text style={styles.infoText}>{addressDisplay}</Text>
-          </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.clickableArea} 
+        activeOpacity={1} 
+        onPress={handleNext}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>{nameDisplay}</Text>
           
-          <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>{visualHours}</Text>
+          <View style={styles.infoList}>
+            <TouchableOpacity style={styles.infoItem} onPress={handleNext}>
+              <Text style={styles.infoText}>{addressDisplay}</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>{visualHours}</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.callButton}
+              onPress={handleCallRequest}
+            >
+              <Phone size={24} color="white" />
+              <Text style={styles.callButtonText}>{visualPhone}</Text>
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.callButton}
-            onPress={handleCallRequest}
-          >
-            <Phone size={24} color="white" />
-            <Text style={styles.callButtonText}>{visualPhone}</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
@@ -137,6 +150,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF9F0',
+  },
+  clickableArea: {
+    flex: 1,
   },
   content: {
     flex: 1,

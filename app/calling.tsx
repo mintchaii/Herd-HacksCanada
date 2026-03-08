@@ -9,75 +9,74 @@ const { width } = Dimensions.get('window');
 
 export default function CallingScreen() {
   const router = useRouter();
-  const onFinished = () => {
-    setTimeout(() => {
-      router.push('/transportation');
-    }, 2000);
-  };
-
+  
   return <StatusScreen 
     title="Calling 519-886-8388..." 
     speechText="calling 519-886-8388" 
-    onFinished={onFinished}
+    onNext={() => router.push('/transportation')}
   />;
 }
 
 export function StatusScreen({ 
   title = "Calling 519-886-8388...", 
   speechText = "calling 519-886-8388",
-  onFinished
+  onNext
 }: { 
   title?: string; 
   speechText?: string;
-  onFinished?: () => void;
+  onNext?: () => void;
 }) {
   const router = useRouter();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fullPrompt = speechText;
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
-    resetTimer();
-    if (command.includes('back')) {
+    
+    const isConfirmation = 
+      command.includes('ok') || 
+      command.includes('great') || 
+      command.includes('next') || 
+      command.includes('thank you') || 
+      command.includes('confirmed');
+
+    if (isConfirmation && onNext) {
+      onNext();
+    } else if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
       router.push('/');
     }
   };
 
-  const resetTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      speak(fullPrompt, onFinished);
-    }, 10000);
-  };
-
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => stopSpeaking(),
     () => {
-      speak(fullPrompt, onFinished);
-      resetTimer();
+      speak(fullPrompt);
     }
   );
 
   useEffect(() => {
-    speak(fullPrompt, onFinished);
-    resetTimer();
+    speak(fullPrompt);
     return () => {
       stopSpeaking();
-      if (timerRef.current) clearInterval(timerRef.current);
       if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     };
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.statusText}>{title}</Text>
-      </View>
+      <TouchableOpacity
+        style={styles.clickableArea}
+        activeOpacity={1}
+        onPress={() => onNext && onNext()}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>{title}</Text>
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
@@ -104,13 +103,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF9F0',
   },
+  clickableArea: {
+    flex: 1,
+  },
   content: {
     flex: 1,
+    paddingHorizontal: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
-  statusText: {
+  title: {
     fontSize: 36,
     fontWeight: 'bold',
     color: '#333',
