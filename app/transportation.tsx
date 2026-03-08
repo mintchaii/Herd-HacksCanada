@@ -40,16 +40,24 @@ export default function Transportation() {
     }
   };
 
+  const restartPrompt = () => {
+    speak('Options are: A, Uber. B, Bus. C, Walk or Car. Say your choice.');
+  };
+
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => {
       console.log('User started speaking, interrupting...');
       stopSpeaking();
+    },
+    () => {
+      console.log('Mic stopped without command, restarting prompt.');
+      restartPrompt();
     }
   );
 
   useEffect(() => {
-    speak('Transportation Menu. Options are: A, Uber. B, Bus. C, Walk or Car. Say your choice.');
+    speak('Options are: A, Uber. B, Bus. C, Walk or Car. Say your choice.');
     
     const interval = setInterval(() => {
       if (!isListening) {

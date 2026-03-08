@@ -12,7 +12,6 @@ const STEPS = [
   { key: 'email', label: 'Email', prompt: 'What is your email address?' },
   // ... more steps for CC and Health can be added
 ];
-
 export default function SetupScreen() {
   const { touchEnabled, setTouchEnabled } = useAppState();
   const [currentStep, setCurrentStep] = useState(0);
@@ -47,11 +46,19 @@ export default function SetupScreen() {
     }
   };
 
+  const restartPrompt = () => {
+    speak(STEPS[currentStep].prompt);
+  };
+
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => {
       console.log('User started speaking, interrupting...');
       stopSpeaking();
+    },
+    () => {
+      console.log('Mic stopped without command, restarting prompt.');
+      restartPrompt();
     }
   );
 

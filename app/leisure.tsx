@@ -60,16 +60,24 @@ export default function LeisureMenu() {
     }
   };
 
+  const restartPrompt = () => {
+    speak('Options are: A, Connect. B, Destinations. Say your choice or use the blue button.');
+  };
+
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => {
       console.log('User started speaking, interrupting...');
       stopSpeaking();
+    },
+    () => {
+      console.log('Mic stopped without command, restarting prompt.');
+      restartPrompt();
     }
   );
 
   useEffect(() => {
-    speak('Leisure Menu. Options are: A, Connect. B, Destinations. Say your choice or use the blue button.');
+    speak('Options are: A, Connect. B, Destinations. Say your choice or use the blue button.');
     
     const interval = setInterval(() => {
       if (!isListening) {

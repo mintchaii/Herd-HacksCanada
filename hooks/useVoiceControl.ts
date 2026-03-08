@@ -1,11 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { stopSpeaking } from './useSpeech';
 
-export const useVoiceControl = (onCommand: (text: string) => void, onUserSpeaking?: () => void) => {
+export const useVoiceControl = (onCommand: (text: string) => void, onUserSpeaking?: () => void, onEndWithoutCommand?: () => void) => {
   const [isListening, setIsListening] = useState(false);
+  const hasResult = useRef(false);
 
   useSpeechRecognitionEvent('start', () => {
     setIsListening(true);
+    hasResult.current = false;
   });
 
   useSpeechRecognitionEvent('speechstart', () => {
@@ -17,6 +20,7 @@ export const useVoiceControl = (onCommand: (text: string) => void, onUserSpeakin
   useSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript;
     if (transcript) {
+      hasResult.current = true;
       onCommand(transcript);
     }
   });
@@ -28,6 +32,9 @@ export const useVoiceControl = (onCommand: (text: string) => void, onUserSpeakin
 
   useSpeechRecognitionEvent('end', () => {
     setIsListening(false);
+    if (!hasResult.current && onEndWithoutCommand) {
+      onEndWithoutCommand();
+    }
   });
 
   const startListening = useCallback(async () => {
@@ -37,6 +44,9 @@ export const useVoiceControl = (onCommand: (text: string) => void, onUserSpeakin
       return;
     }
 
+    // Ensure absolute silence when starting to listen
+    await stopSpeaking();
+    
     setIsListening(true);
     ExpoSpeechRecognitionModule.start({
       lang: 'en-US',

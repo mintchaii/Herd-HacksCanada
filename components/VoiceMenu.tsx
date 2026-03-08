@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Platform, StatusBar } from 'react-native';
 import { MapPin, Smartphone, ShoppingCart, Star, Mic, ChevronLeft, Home } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
@@ -44,13 +44,13 @@ export default function VoiceMenu() {
   const router = useRouter();
   const { touchEnabled, setTouchEnabled } = useAppState();
   const [showTouchPopup, setShowTouchPopup] = useState(false);
-  const [lastPromptTime, setLastPromptTime] = useState(Date.now());
+  
+  const mainPrompt = 'What would you like to do today? Options are: A, Leisure. B, Technology Support. C, Errands. D, Favourites. Tap the blue button or speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
     console.log('Voice Command:', command);
 
-    // Improved recognition for letters and context
     const isOptionA = command === 'a' || command.includes('option a') || command.includes('say a') || command.includes('leisure');
     const isOptionB = command === 'b' || command.includes('option b') || command.includes('say b') || command.includes('support') || command.includes('technology');
     const isOptionC = command === 'c' || command.includes('option c') || command.includes('say c') || command.includes('errands');
@@ -74,23 +74,31 @@ export default function VoiceMenu() {
     }
   };
 
+  const restartPrompt = () => {
+    console.log('Restarting prompt...');
+    speak(mainPrompt);
+  };
+
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => {
       console.log('User started speaking, interrupting...');
       stopSpeaking();
+    },
+    () => {
+      console.log('Mic stopped without command, restarting prompt.');
+      restartPrompt();
     }
   );
 
   useEffect(() => {
-    // Initial prompt updated
-    speak('What would you like to do today? Options are: A, Leisure. B, Technology Support. C, Errands. D, Favourites. Tap the blue button or speak your choice.');
+    speak(mainPrompt);
     
     const interval = setInterval(() => {
       if (!isListening) {
         speak('Please choose an option: Leisure, Support, Errands, or Favourites. Or say Activate touch features.');
       }
-    }, 20000); // Updated to 20s as requested
+    }, 20000);
     
     return () => {
       clearInterval(interval);
@@ -100,9 +108,9 @@ export default function VoiceMenu() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
       <TouchTogglePopup visible={showTouchPopup} onClose={() => setShowTouchPopup(false)} />
       
-      {/* App Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Gramco</Text>
       </View>
@@ -173,16 +181,17 @@ const styles = StyleSheet.create({
   },
   grid: {
     flex: 1,
-    paddingTop: 0, // Removed top padding as header handles it
-    gap: 20,
-    marginTop: 20, // Push buttons down
+    paddingTop: 5,
+    gap: 12,
+    marginTop: 20, // Push grid down more to avoid overlap with header
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40, // Increased for notches
+    paddingBottom: 5,
   },
   headerTitle: {
-    fontSize: 48,
+    fontSize: 52, // Slightly smaller for better fit
     fontWeight: '900',
     color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
@@ -190,13 +199,13 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 20,
-    flex: 0.38, // Slightly reduced to fit header
+    gap: 12,
+    flex: 0.33, // Reduced to fit more content below
   },
   menuButton: {
     flex: 1,
     borderRadius: 30,
-    padding: 20,
+    padding: 8, // Reduced padding to fit text better
     alignItems: 'center',
     justifyContent: 'center',
     // Shadow for iOS
@@ -221,10 +230,11 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   labelButtonText: {
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18
     fontWeight: '700',
     color: '#333',
     textAlign: 'center',
+    paddingHorizontal: 5,
   },
   bottomNav: {
     flexDirection: 'row',
