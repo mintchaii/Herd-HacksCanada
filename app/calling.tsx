@@ -1,4 +1,3 @@
-import { useAppState } from '@/hooks/useAppState';
 import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
 import { useRouter } from 'expo-router';
@@ -8,26 +7,42 @@ import { Dimensions, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity,
 
 const { width } = Dimensions.get('window');
 
-export default function TransportationScreen() {
+export default function CallingScreen() {
   const router = useRouter();
-  const { touchEnabled } = useAppState();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  return <StatusScreen 
+    title="Calling 519-886-8388..." 
+    speechText="calling 519-886-8388" 
+    onNext={() => router.push('/transportation')}
+  />;
+}
+
+export function StatusScreen({ 
+  title = "Calling 519-886-8388...", 
+  speechText = "calling 519-886-8388",
+  onNext
+}: { 
+  title?: string; 
+  speechText?: string;
+  onNext?: () => void;
+}) {
+  const router = useRouter();
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const titleDisplay = "Transport";
-  const options = ["Uber", "Bus", "Car"];
-  const infoMsg = `Transportation. would you like to travel to your destination by Uber, by bus or by car? Tap the blue button and speak your choice.`;
+  const fullPrompt = speechText;
 
   const handleCommand = (text: string) => {
-    const command = text.toLowerCase();
-    // resetTimer(); // Removed confirmed
+    const command = text.toLowerCase().trim();
+    
+    const isConfirmation = 
+      command.includes('ok') || 
+      command.includes('great') || 
+      command.includes('next') || 
+      command.includes('thank you') || 
+      command.includes('confirmed');
 
-    if (command.includes('uber')) {
-      handleChoice('uber');
-    } else if (command.includes('bus')) {
-      handleChoice('bus');
-    } else if (command.includes('car')) {
-      handleChoice('car');
+    if (isConfirmation && onNext) {
+      onNext();
     } else if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
@@ -35,32 +50,16 @@ export default function TransportationScreen() {
     }
   };
 
-  const handleChoice = (path: string) => {
-    stopAndClear();
-    router.push(`/${path}` as any);
-  };
-
-  const stopAndClear = () => {
-    stopSpeaking();
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current); // Clear transition timer
-  };
-
-  const resetTimer = () => {
-    // No repeating timer anymore
-  };
-
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => stopSpeaking(),
     () => {
-      speak(infoMsg);
+      speak(fullPrompt);
     }
   );
 
   useEffect(() => {
-    speak(infoMsg);
-    
+    speak(fullPrompt);
     return () => {
       stopSpeaking();
       if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
@@ -69,21 +68,15 @@ export default function TransportationScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>{titleDisplay}</Text>
-        
-        <View style={styles.infoList}>
-          {options.map((option, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.infoItem} 
-              onPress={() => handleChoice(option.toLowerCase())}
-            >
-              <Text style={styles.infoText}>{option}</Text>
-            </TouchableOpacity>
-          ))}
+      <TouchableOpacity
+        style={styles.clickableArea}
+        activeOpacity={1}
+        onPress={() => onNext && onNext()}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>{title}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
@@ -110,39 +103,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF9F0',
   },
+  clickableArea: {
+    flex: 1,
+  },
   content: {
     flex: 1,
-    paddingHorizontal: 30,
+    paddingHorizontal: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontSize: 56,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
-    marginBottom: 60,
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
-  infoList: {
-    width: '100%',
-    gap: 30,
-  },
-  infoItem: {
-    backgroundColor: 'white',
-    padding: 30,
-    borderRadius: 25,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-  },
-  infoText: {
-    fontSize: 32,
-    color: '#333',
-    fontWeight: '800',
-    textAlign: 'center',
   },
   bottomNav: {
     flexDirection: 'row',

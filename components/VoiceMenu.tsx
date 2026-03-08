@@ -43,7 +43,7 @@ export default function VoiceMenu() {
   const { touchEnabled, setTouchEnabled } = useAppState();
   const [showTouchPopup, setShowTouchPopup] = useState(false);
   
-  const mainPrompt = 'What would you like to do today? Your options are: Leisure, Technology Support, Errands, or Favourites. Tap the blue button or speak your choice.';
+  const mainPrompt = 'What would you like to do? Choose from the options: leisure, technology support, errands or favourites. Tap the blue button and speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
@@ -92,17 +92,10 @@ export default function VoiceMenu() {
   useEffect(() => {
     speak(mainPrompt);
     
-    const interval = setInterval(() => {
-      if (!isListening) {
-        speak('Please choose an option: Leisure, Support, Errands, or Favourites. Or say Activate touch features.');
-      }
-    }, 20000);
-    
     return () => {
-      clearInterval(interval);
       stopSpeaking();
     };
-  }, [isListening]);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

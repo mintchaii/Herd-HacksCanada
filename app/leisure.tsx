@@ -49,7 +49,7 @@ export default function LeisureMenu() {
   const [summary, setSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  const mainPrompt = 'Would you like to connect to neighbours or choose a destination? Tap the blue button or speak your choice.';
+  const mainPrompt = 'You have chosen the Leisure option. Would you like to connect with your neighbours or choose a destination? Tap the blue button and speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase();
@@ -166,17 +166,10 @@ export default function LeisureMenu() {
       speak(mainPrompt);
     }
     
-    const interval = setInterval(() => {
-      if (!isListening && !showConnectModal) {
-        speak('Please choose to connect with neighbours or choose a destination.');
-      }
-    }, 20000);
-    
     return () => {
-      clearInterval(interval);
       stopSpeaking();
     };
-  }, [isListening, showConnectModal]);
+  }, [showConnectModal]);
 
   return (
     <SafeAreaView style={styles.container}>

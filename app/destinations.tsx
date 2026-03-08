@@ -1,66 +1,27 @@
 import { useAppState } from '@/hooks/useAppState';
 import { speak, stopSpeaking } from '@/hooks/useSpeech';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
-import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Clock, Home, MapPin, Mic, Phone, X } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Modal, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { ChevronLeft, Home, Mic } from 'lucide-react-native';
+import React, { useEffect, useRef } from 'react';
+import { Dimensions, ImageBackground, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
-
-const UW_COORDS = {
-  latitude: 43.4723,
-  longitude: -80.5449,
-};
-const REGIONAL_RADIUS = 25000; // 25 km
-const DEFAULT_RADIUS = 1500; // 1.5 km
-
-// Using the key from environment or app.js config
-const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAgVvn36Hu7ARvmF8hc1zUb5oqgNghGT1c';
-
-interface Place {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  type: 'restaurant' | 'grocery' | 'pharmacy';
-  address?: string;
-  phone?: string;
-  hours?: string[];
-}
-
-import { makeCall } from '@/utils/blandAI';
 
 export default function DestinationsScreen() {
   const router = useRouter();
   const { touchEnabled } = useAppState();
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState(false);
-  const [detailsLoading, setDetailsLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const mapRef = useRef<MapView>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const mainPrompt = 'I have loaded nearby restaurants, grocery stores, and pharmacies on the map. You can tap a pin to see details or say call to request a reservation.';
+  const mainPrompt = 'Where do you want to go? Tap the blue button and speak your choice.';
 
   const handleCommand = (text: string) => {
     const command = text.toLowerCase().trim();
     console.log('Voice Command:', command);
+    resetTimer();
 
-    if (command.includes('call') || command.includes('request')) {
-      if (selectedPlace) {
-        handleCallRequest();
-      } else {
-        speak('Please select a place on the map first.');
-      }
-    } else if (command.includes('direction')) {
-      handleDirections();
+    if (command.includes('next') || command.includes('yes') || command.includes('correct') || command.includes('eastside') || command.includes('mario')) {
+      handleNavigateToDetails();
     } else if (command.includes('back')) {
       router.back();
     } else if (command.includes('home')) {
@@ -68,291 +29,76 @@ export default function DestinationsScreen() {
     }
   };
 
-  const handleDirections = () => {
-    speak('Centering map on the University of Waterloo and searching for services within 25 kilometers.');
-    setLoading(true);
-    
-    // Set to UW region
-    const region = {
-      ...UW_COORDS,
-      latitudeDelta: 0.3, // Larger delta for 25km view
-      longitudeDelta: 0.3,
-    };
-    
-    mapRef.current?.animateToRegion(region, 1000);
-    fetchNearbyPlaces(UW_COORDS.latitude, UW_COORDS.longitude, REGIONAL_RADIUS);
+  const handleNavigateToDetails = () => {
+    stopSpeaking();
+    if (timerRef.current) clearInterval(timerRef.current);
+    router.push({
+      pathname: '/details',
+      params: {
+        name: "East Side Mario's",
+        address: "450 King St N",
+        hours: "(S) 11-10 | (M-Th) 11-9 | (F-S) 11-11",
+        phone: "519-886-8388"
+      }
+    });
   };
 
-  const restartPrompt = () => {
-    speak(mainPrompt);
+  const handleChoice = (path: string) => {
+    stopSpeaking();
+    router.push(`/${path}` as any);
   };
 
   const { isListening, startListening, stopListening } = useVoiceControl(
     handleCommand,
     () => stopSpeaking(),
-    () => restartPrompt()
+    () => speak(mainPrompt)
   );
 
+  const resetTimer = () => {
+    // Timer logic would go here if needed, but it's currently empty in the original context
+  };
+
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorMsg('Permission to access location was denied');
-        setLoading(false);
-        return;
-      }
-
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
-      fetchNearbyPlaces(location.coords.latitude, location.coords.longitude);
-    })();
-
     speak(mainPrompt);
-    
     return () => {
       stopSpeaking();
     };
   }, []);
 
-  const fetchNearbyPlaces = async (lat: number, lng: number, radius: number = DEFAULT_RADIUS) => {
-    try {
-      const types = ['restaurant', 'grocery_or_supermarket', 'pharmacy'];
-      const allPlaces: Place[] = [];
-
-      for (const type of types) {
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${GOOGLE_MAPS_API_KEY}`
-        );
-        const data = await response.json();
-
-        if (data.results) {
-          // Increase limit for regional view
-          const limit = radius > 5000 ? 15 : 5;
-          data.results.slice(0, limit).forEach((item: any) => {
-            allPlaces.push({
-              id: item.place_id,
-              name: item.name,
-              latitude: item.geometry.location.lat,
-              longitude: item.geometry.location.lng,
-              type: type === 'restaurant' ? 'restaurant' : type === 'pharmacy' ? 'pharmacy' : 'grocery',
-              address: item.vicinity
-            });
-          });
-        }
-      }
-      setPlaces(allPlaces);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching places:', error);
-      setLoading(false);
-    }
-  };
-
-  const handleMarkerPress = async (place: Place) => {
-    setSelectedPlace(place);
-    setDetailsLoading(true);
-    setShowModal(true);
-
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.id}&fields=formatted_phone_number,opening_hours,formatted_address&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
-
-      if (data.result) {
-        const updatedPlace = {
-          ...place,
-          phone: data.result.formatted_phone_number,
-          address: data.result.formatted_address,
-          hours: data.result.opening_hours?.weekday_text
-        };
-        setSelectedPlace(updatedPlace);
-        speak(`${place.name}. Located at ${updatedPlace.address}. Would you like to request a call?`);
-      }
-    } catch (error) {
-      console.error('Error fetching place details:', error);
-    } finally {
-      setDetailsLoading(false);
-    }
-  };
-
-  const handleCallRequest = async () => {
-    if (selectedPlace?.phone) {
-      speak(`Calling ${selectedPlace.name} on your behalf.`);
-      
-      try {
-        await makeCall(
-          selectedPlace.phone,
-          `I am calling to make a reservation or inquiry at ${selectedPlace.name}. Please help the customer with their request.`,
-          'the user'
-        );
-        speak('Call has been placed successfully!');
-      } catch (error) {
-        speak('Sorry, I was unable to place the call. Please try again.');
-      }
-      
-      setShowModal(false);
-    } else {
-      speak('Sorry, I do not have a phone number for this location.');
-    }
-  };
-
-  const getMarkerColor = (type: string) => {
-    switch (type) {
-      case 'restaurant': return '#4285F4'; // Blue
-      case 'grocery': return '#34A853'; // Green
-      case 'pharmacy': return '#EA4335'; // Red
-      default: return '#FBBC05';
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4285F4" />
-        <Text style={styles.loadingText}>Locating nearby services...</Text>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.mapContainer}>
-        {mapError ? (
-          <View style={styles.errorContainer}>
-            <X size={50} color="#EA4335" />
-            <Text style={styles.errorText}>Failed to load map. Please check your connection.</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => setMapError(false)}>
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : location && (
-          <MapView
-            ref={mapRef}
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            onMapReady={() => setMapReady(true)}
-            {...({
-              onError: (e: any) => {
-                console.log('Map error:', e);
-                setMapError(true);
-              }
-            } as any)}
-            initialRegion={{
-              latitude: location?.coords?.latitude ?? 43.6532,
-              longitude: location?.coords?.longitude ?? -79.3832,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }}
-          >
-            {mapReady && (
-              <>
-                <Marker
-                  key="user-location"
-                  coordinate={{
-                    latitude: location.coords.latitude,
-                    longitude: location.coords.longitude,
-                  }}
-                  title="You are here"
-                  pinColor="#000"
-                />
-                {places.map((place) => (
-                  <Marker
-                    key={`place-${place.id}`}
-                    coordinate={{ latitude: place.latitude, longitude: place.longitude }}
-                    title={place.name}
-                    pinColor={getMarkerColor(place.type)}
-                    onPress={() => handleMarkerPress(place)}
-                  />
-                ))}
-              </>
-            )}
-          </MapView>
-        )}
-        
-        {mapReady && (
-          <TouchableOpacity 
-            style={styles.directionsButton} 
-            onPress={handleDirections}
-          >
-            <MapPin size={28} color="white" />
-            <Text style={styles.directionsButtonText}>Waterloo Hub</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
-          <ChevronLeft size={40} color="#333" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
-          onPress={isListening ? stopListening : startListening}
-        >
-          <Mic size={60} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.smallButton} onPress={() => router.push('/')}>
-          <Home size={40} color="#333" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Modal moved to end of hierarchy */}
-      <Modal
-        visible={showModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowModal(false)}
+      <TouchableOpacity 
+        style={styles.clickableArea} 
+        activeOpacity={1} 
+        onPress={handleNavigateToDetails}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setShowModal(false)}>
-              <X size={24} color="#666" />
+        <ImageBackground 
+          source={require('@/assets/images/map_static_v2.png')} 
+          style={styles.mapBackground}
+          resizeMode="cover"
+        >
+          <View style={styles.overlay}>
+            <Text style={styles.promptText}>Where do you want to go?</Text>
+          </View>
+
+          <View style={styles.bottomNav}>
+            <TouchableOpacity style={styles.smallButton} onPress={() => router.back()}>
+              <ChevronLeft size={40} color="#333" />
             </TouchableOpacity>
 
-            {detailsLoading ? (
-              <ActivityIndicator size="large" color="#4285F4" />
-            ) : selectedPlace && (
-              <>
-                <Text style={styles.placeName}>{selectedPlace.name}</Text>
+            <TouchableOpacity
+              style={[styles.largeMicButton, isListening && { backgroundColor: '#EA4335' }]}
+              onPress={isListening ? stopListening : startListening}
+            >
+              <Mic size={60} color="white" />
+            </TouchableOpacity>
 
-                <View style={styles.infoRow}>
-                  <MapPin size={20} color="#666" />
-                  <Text style={styles.infoText}>{selectedPlace.address}</Text>
-                </View>
-
-                {selectedPlace.phone && (
-                  <View style={styles.infoRow}>
-                    <Phone size={20} color="#666" />
-                    <Text style={styles.infoText}>{selectedPlace.phone}</Text>
-                  </View>
-                )}
-
-                {selectedPlace.hours && (
-                  <View style={styles.hoursContainer}>
-                    <View style={styles.infoRow}>
-                      <Clock size={20} color="#666" />
-                      <Text style={styles.infoText}>Opening Hours:</Text>
-                    </View>
-                    {selectedPlace.hours.map((day, index) => (
-                      <Text key={index} style={styles.hourLine}>{day}</Text>
-                    ))}
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={styles.requestButton}
-                  onPress={handleCallRequest}
-                >
-                  <Phone size={24} color="white" />
-                  <Text style={styles.requestButtonText}>Request Call</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <TouchableOpacity style={styles.smallButton} onPress={() => router.push('/')}>
+              <Home size={40} color="#333" />
+            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </ImageBackground>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -360,144 +106,49 @@ export default function DestinationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F0',
+    backgroundColor: '#fff', // White background for the zoom-out look
   },
-  loadingContainer: {
+  clickableArea: {
     flex: 1,
+  },
+  mapBackground: {
+    flex: 1,
+    width: width,
+    height: height,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF9F0',
   },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 18,
-    color: '#666',
-  },
-  mapContainer: {
+  overlay: {
     flex: 1,
-    marginTop: 10,
-    marginHorizontal: 10,
-    backgroundColor: '#fff',
-    elevation: 8,
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+    paddingTop: 80,
+    width: '100%',
   },
-  errorText: {
-    marginTop: 15,
-    fontSize: 18,
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#4285F4',
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    padding: 30,
-    minHeight: height * 0.5,
-  },
-  closeButton: {
-    position: 'absolute',
-    right: 30,
-    top: 30,
-    zIndex: 1,
-  },
-  placeName: {
-    fontSize: 32,
+  promptText: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 20,
-    paddingRight: 40,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-    marginBottom: 15,
-  },
-  infoText: {
-    fontSize: 18,
-    color: '#444',
-    flex: 1,
-  },
-  hoursContainer: {
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  hourLine: {
-    fontSize: 16,
-    color: '#666',
-    marginLeft: 35,
-    marginBottom: 2,
-  },
-  requestButton: {
-    backgroundColor: '#4285F4',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 25,
-    borderRadius: 30,
-    gap: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 25,
+    paddingVertical: 15,
+    borderRadius: 20,
+    overflow: 'hidden',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     elevation: 5,
   },
-  requestButtonText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  directionsButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: '#34A853',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    gap: 10,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  directionsButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   bottomNav: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
     paddingBottom: 60,
     gap: 30,
+    backgroundColor: 'rgba(255, 249, 240, 0.4)',
   },
   largeMicButton: {
     width: 150,
@@ -507,7 +158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 15,
-    shadowColor: '#4285F4',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.4,
     shadowRadius: 18,
